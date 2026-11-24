@@ -24,77 +24,6 @@ section[id] {
   scroll-margin-top: 84px;
 }
 
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-}
-
-.topbar-inner {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 10px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--foreground);
-  text-decoration: none;
-}
-
-.brand-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
-  background: #1a73e8;
-  color: #fff;
-}
-
-.brand small {
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--muted-foreground);
-}
-
-.top-nav {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.top-nav a {
-  padding: 8px 12px;
-  border-radius: 8px;
-  color: var(--muted-foreground);
-  text-decoration: none;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.top-nav a:hover {
-  background: var(--muted);
-  color: var(--foreground);
-}
-
-.top-nav a.active {
-  background: var(--muted);
-  color: var(--foreground);
-  font-weight: 600;
-}
-
 .section-tabs {
   display: flex;
   gap: 4px;
@@ -178,29 +107,6 @@ section[id] {
   font-size: 14px;
 }
 
-.tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.tabs button {
-  border: 1px solid var(--border);
-  background: var(--card);
-  border-radius: 999px;
-  padding: 8px 16px;
-  font-size: 14px;
-  cursor: pointer;
-  color: var(--foreground);
-}
-
-.tabs button.active {
-  background: #1a73e8;
-  border-color: #1a73e8;
-  color: #fff;
-}
-
 .kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -208,73 +114,10 @@ section[id] {
   margin-bottom: 20px;
 }
 
-.kpi {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 16px;
-}
-
-.kpi .label {
-  font-size: 13px;
-  color: var(--muted-foreground);
-  margin-bottom: 6px;
-}
-
-.kpi .value {
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.kpi .sub {
-  font-size: 12px;
-  color: var(--muted-foreground);
-  margin-top: 4px;
-}
-
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-  margin-bottom: 20px;
-}
-
-.card h2 {
-  font-size: 17px;
-  margin: 0 0 12px;
-}
-
 .empty {
   color: var(--muted-foreground);
   font-size: 14px;
   padding: 12px 0;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-th,
-td {
-  text-align: left;
-  padding: 8px 6px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-
-th {
-  color: var(--muted-foreground);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-td.num,
-th.num {
-  text-align: right;
-  white-space: nowrap;
 }
 
 .bar-row {
@@ -331,16 +174,6 @@ footer {
   color: var(--muted-foreground);
   font-size: 12px;
   margin-top: 8px;
-}
-
-.error {
-  background: #fdecea;
-  border: 1px solid #f5c6c0;
-  color: #8a1f16;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 14px;
-  margin-bottom: 20px;
 }
 
 @theme inline {
@@ -484,35 +317,6 @@ footer {
     @apply bg-transparent! dark:invert;
   }
 }
-/* 主頁：地圖優先（手機優先：地圖在上、時間軸在下，寬螢幕地圖在左、時間軸在右） */
-.map-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 16px 16px 48px;
-}
-
-.map-layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
-  align-items: start;
-}
-
-@media (min-width: 900px) {
-  .map-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
-    gap: 24px;
-  }
-}
-
-.map-hero {
-  min-width: 0;
-}
-
-.map-side {
-  min-width: 0;
-}
-
 /* 主頁：Google Maps 式全幅地圖（地圖是底層，內容浮在上面） */
 .map-shell {
   position: relative;
@@ -584,47 +388,6 @@ footer {
   padding: 0 16px 24px;
 }
 
-/* 搜尋框（桌機浮在地圖上方、手機在面板頂端，共用同一個狀態） */
-.map-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--background);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 8px 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-}
-
-.map-search-icon {
-  flex-shrink: 0;
-  color: var(--muted-foreground);
-}
-
-.map-search-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: var(--foreground);
-  font-size: 15px;
-}
-
-.map-search-input::placeholder {
-  color: var(--muted-foreground);
-}
-
-.map-search-clear {
-  display: flex;
-  flex-shrink: 0;
-  border: none;
-  background: transparent;
-  color: var(--muted-foreground);
-  cursor: pointer;
-  padding: 0;
-}
-
 /* 桌機搜尋框：浮在地圖上方、面板右側 */
 .map-search-overlay {
   position: absolute;
@@ -654,10 +417,6 @@ footer {
   border-radius: 999px;
   padding: 4px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-}
-
-.map-basemap-btn {
-  border-radius: 999px;
 }
 
 /* 手機：sheet 關閉後重新開啟的浮動按鈕 */
@@ -695,34 +454,6 @@ footer {
   margin: 8px 0 4px;
 }
 
-/* 選中路線的詳細卡片（面板／sheet 頂端） */
-.hike-detail {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px;
-  margin: 8px 0 4px;
-}
-
-.hike-detail-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.hike-detail-date {
-  font-size: 13px;
-  color: var(--muted-foreground);
-  margin-bottom: 2px;
-}
-
-.hike-detail-title {
-  font-size: 16px;
-  font-weight: 700;
-  margin: 0 0 8px;
-}
-
 .route-dot {
   display: inline-block;
   width: 10px;
@@ -758,13 +489,6 @@ footer {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
-.hike-marker-dim {
-  background: #94a3b8;
-  width: 22px;
-  height: 22px;
-  font-size: 12px;
-}
-
 /* 集合點 pin（lucide MapPin，路線顏色描邊 + 白色光暈，在淺/深底圖都看得見） */
 .hike-pin {
   display: flex;
@@ -796,46 +520,11 @@ footer {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
-/* 年/週篩選列 */
-.hike-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 14px;
-}
-
-.hike-filter label {
-  font-size: 14px;
-  color: var(--muted-foreground);
-}
-
-.hike-filter .count {
-  margin-left: auto;
-  font-size: 13px;
-  color: var(--muted-foreground);
-}
-
 .hike-meet {
   margin: 0 0 8px;
   font-size: 14px;
 }
 
-.hike-note {
-  color: var(--muted-foreground);
-  font-size: 13px;
-  margin: 10px 0 0;
-}
-
-.post-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin: 10px 0 0;
-  font-size: 14px;
-}
-
-/* 貼文卡片（Facebook 式：標頭列 + 內容 + 數據列） */
 .post-head {
   display: flex;
   align-items: baseline;
@@ -845,26 +534,6 @@ footer {
 
 .post-name {
   font-weight: 600;
-}
-
-.post-date {
-  color: var(--muted-foreground);
-  font-size: 13px;
-}
-
-.post-type {
-  margin-left: auto;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 2px 10px;
-  font-size: 12px;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-}
-
-.post-text {
-  margin: 0 0 12px;
-  white-space: pre-wrap;
 }
 
 .post-stats {
