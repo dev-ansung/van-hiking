@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import { List, Map as MapIcon, Satellite, Search, X } from "lucide-react";
+import { List, Map as MapIcon, Satellite } from "lucide-react";
 import {
   Timeline,
   TimelineContent,
@@ -13,6 +13,7 @@ import {
   TimelineSeparator,
   TimelineTitle,
 } from "@/components/reui/timeline";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -20,23 +21,27 @@ import {
   DrawerDescription,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 import Header from "@/components/header";
+import { HikeDetailCard } from "@/components/hike-detail-card";
 import { routeColor } from "@/components/hike-map";
+import { SearchBox } from "@/components/search-box";
+import { DEFAULT_ACCOUNT, fetchAllHikes, getJSON } from "@/lib/api";
+import {
+  PAGE_SIZE,
+  filterHikes,
+  fmtEstMin,
+  isoYearWeek,
+  recentCutoffStr,
+} from "@/lib/hikes";
 
 const HikesMap = dynamic(() => import("@/components/hike-map"), {
   ssr: false,
   loading: () => <p className="empty">地圖載入中…</p>,
 });
-
-const API = "https://vanhiking-api.ansung.dev";
-const DEFAULT_ACCOUNT = "fb-changqing";
-
-async function getJSON(path) {
-  const res = await fetch(API + path, { cache: "no-store" });
-  if (!res.ok) throw new Error("HTTP " + res.status);
-  return res.json();
-}
 
 // Post-type cache for the detail-card Facebook links: the hikes API carries
 // only post_ids, so the card looks each post's type up via GET /posts/:id.
@@ -45,88 +50,6 @@ async function getJSON(path) {
 // is neither photo nor video — the generic label stays in that case.
 const postTypeCache = new Map(); // platform_post_id -> "photo" | "video" | null
 const postTypeInflight = new Set();
-
-function postLinkLabel(pid, index, total) {
-  const type = postTypeCache.get(pid);
-  if (type === "photo") return "在 Facebook 查看照片";
-  if (type === "video") return "在 Facebook 查看影片";
-  return total > 1 ? `在 Facebook 查看貼文 ${index + 1}` : "在 Facebook 查看";
-}
-
-// Estimated minutes -> "約 2 小時 37 分鐘" (estimates only, never measured).
-function fmtEstMin(min) {
-  if (min === null || min === undefined || min === "") return "—";
-  const m = Math.round(Number(min));
-  if (Number.isNaN(m)) return "—";
-  if (m < 60) return `約 ${m} 分鐘`;
-  const h = Math.floor(m / 60);
-  const r = m % 60;
-  return r === 0 ? `約 ${h} 小時` : `約 ${h} 小時 ${r} 分鐘`;
-}
-
-// ISO 8601 year + week for a YYYY-MM-DD date (UTC noon avoids TZ shifts).
-function isoYearWeek(dateStr) {
-  const d = new Date(`${dateStr}T12:00:00Z`);
-  const day = (d.getUTCDay() + 6) % 7; // Monday = 0
-  d.setUTCDate(d.getUTCDate() - day + 3); // Thursday of this week
-  const year = d.getUTCFullYear();
-  const jan4 = new Date(Date.UTC(year, 0, 4));
-  const jan4Day = (jan4.getUTCDay() + 6) % 7;
-  const firstThu = new Date(jan4);
-  firstThu.setUTCDate(jan4.getUTCDate() - jan4Day + 3);
-  const week = 1 + Math.round((d - firstThu) / (7 * 24 * 3600 * 1000));
-  return { year, week };
-}
-
-// Searchable text for a hike: route name, meeting point, waypoint names.
-function searchText(h) {
-  const wps = Array.isArray(h.waypoints) ? h.waypoints : [];
-  return [h.route, h.meeting_point, ...wps.map((w) => w.name || "")]
-    .join(" ")
-    .toLowerCase();
-}
-
-// Default view: only the last 3 months, so 202 pins never all show at once.
-// "recent" is a sentinel yearFilter value alongside "all" and year numbers;
-// picking a year/week overrides it, and 全部 restores the full list.
-const RECENT_MONTHS = 3;
-const PAGE_SIZE = 10;
-
-function recentCutoffStr() {
-  const now = new Date();
-  const cut = new Date(now.getFullYear(), now.getMonth() - RECENT_MONTHS, now.getDate());
-  const y = cut.getFullYear();
-  const m = String(cut.getMonth() + 1).padStart(2, "0");
-  const d = String(cut.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function SearchBox({ value, onChange, autoFocus }) {
-  return (
-    <div className="map-search">
-      <Search size={18} className="map-search-icon" />
-      <input
-        type="search"
-        value={value}
-        autoFocus={autoFocus}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="搜尋路線、地點、集合點…"
-        aria-label="搜尋路線"
-        className="map-search-input"
-      />
-      {value && (
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          aria-label="清除搜尋"
-          className="map-search-clear"
-        >
-          <X size={16} />
-        </button>
-      )}
-    </div>
-  );
-}
 
 // The panel/sheet content, shared by the desktop fixed panel and the mobile
 // bottom sheet. Defined at module level (not inside Page) so the search
@@ -254,67 +177,24 @@ function PanelContent(props) {
 
       <p className="count">顯示 {visible.length} 趟健行</p>
 
-      {selected && (
-        <div className="hike-detail">
-          <div className="hike-detail-head">
-            <div>
-              <div className="hike-detail-date">
-                {selected.hike_date} · {selected.year} 年第 {selected.week} 週
-              </div>
-              <h3 className="hike-detail-title">{selected.route}</h3>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClearSelection}
-              aria-label="關閉路線詳細資料"
-            >
-              <X size={16} />
-            </Button>
-          </div>
-          <p className="hike-meet">集合點：{selected.meeting_point || "—"}</p>
-          <div className="post-stats">
-            <span>
-              {selected.distance_km
-                ? `距離 約 ${selected.distance_km} 公里（估算）`
-                : "距離 —"}
-            </span>
-            <span>時間 {fmtEstMin(selected.est_duration_min)}（估算）</span>
-            <span>
-              實際時間：
-              {selected.actual_duration_min
-                ? fmtEstMin(selected.actual_duration_min)
-                : "待回報"}
-            </span>
-          </div>
-          <p className="hike-note">
-            {selected.estimate_note
-              ? selected.estimate_note
-              : "距離與時間為路線估算，非實測；實際時間待回報。"}
-          </p>
-          {Array.isArray(selected.post_ids) &&
-          selected.post_ids.length > 0 ? (
-            <div className="post-links">
-              {selected.post_ids.map((pid, i) => (
-                <a
-                  key={pid}
-                  className="post-link"
-                  href={`https://www.facebook.com/775427925912036/posts/${pid}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {postLinkLabel(pid, i, selected.post_ids.length)}
-                </a>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      )}
+      <HikeDetailCard
+        hike={selected}
+        getPostType={(pid) => postTypeCache.get(pid)}
+        onClose={onClearSelection}
+      />
 
       {loading && visible.length === 0 ? (
-        <p>載入中…</p>
+        <div className="flex flex-col gap-3 py-2">
+          <Skeleton className="h-16 w-full rounded-lg" />
+          <Skeleton className="h-16 w-full rounded-lg" />
+          <Skeleton className="h-16 w-full rounded-lg" />
+        </div>
       ) : visible.length === 0 ? (
-        <p className="empty">這個時間沒有健行紀錄</p>
+        <Empty className="border-none py-6">
+          <EmptyHeader>
+            <EmptyTitle>這個時間沒有健行紀錄</EmptyTitle>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <Timeline
           value={selectedVisible === null ? 0 : selectedVisible + 1}
@@ -422,20 +302,7 @@ export default function Page() {
     let cancelled = false;
     (async () => {
       try {
-        // Fetch every hike (202 total; the API pages at limit=100).
-        const all = [];
-        let offset = 0;
-        let total = Infinity;
-        while (offset < total) {
-          const page = await getJSON(
-            `/hikes?account_id=${encodeURIComponent(DEFAULT_ACCOUNT)}&limit=100&offset=${offset}`
-          ).catch(() => ({ hikes: [], total: 0 }));
-          const rows = Array.isArray(page.hikes) ? page.hikes : [];
-          all.push(...rows);
-          total = typeof page.total === "number" ? page.total : rows.length;
-          offset += rows.length;
-          if (rows.length === 0) break;
-        }
+        const all = await fetchAllHikes(DEFAULT_ACCOUNT);
         if (!cancelled) setHikes(all);
       } catch (e) {
         if (!cancelled) setError("無法連到後台 API，請稍後再試。");
@@ -486,18 +353,16 @@ export default function Page() {
     return [...new Set(pool.map((h) => h.week))].sort((a, b) => a - b);
   }, [hikesWithMeta, yearFilter, recentCutoff]);
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return hikesWithMeta.filter(
-      (h) =>
-        (yearFilter === "all" ||
-          (yearFilter === "recent"
-            ? h.hike_date >= recentCutoff
-            : h.year === Number(yearFilter))) &&
-        (weekFilter === "all" || h.week === Number(weekFilter)) &&
-        (!q || searchText(h).includes(q))
-    );
-  }, [hikesWithMeta, yearFilter, weekFilter, query, recentCutoff]);
+  const visible = useMemo(
+    () =>
+      filterHikes(hikesWithMeta, {
+        yearFilter,
+        weekFilter,
+        query,
+        cutoff: recentCutoff,
+      }),
+    [hikesWithMeta, yearFilter, weekFilter, query, recentCutoff]
+  );
 
   // The rendered list slice: 10 at a time, newest first (hikes arrive
   // newest-first from the API and filters preserve that order).
@@ -633,7 +498,14 @@ export default function Page() {
       <Header active="map" />
 
       <main className="map-shell">
-        {error && <div className="map-alert error">{error}</div>}
+        {error && (
+          <Alert
+            variant="destructive"
+            className="map-alert border-destructive/40 bg-card shadow-md"
+          >
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         <div className="map-full">
           <HikesMap
@@ -650,26 +522,27 @@ export default function Page() {
         </div>
 
         {/* Map / satellite switch. Independent of the light/dark UI theme. */}
-        <div className="map-basemap-toggle" role="group" aria-label="底圖切換">
-          <Button
-            size="sm"
-            variant={basemap === "map" ? "default" : "outline"}
-            onClick={() => setBasemap("map")}
-            className="map-basemap-btn"
-          >
-            <MapIcon size={15} />
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          spacing={0}
+          value={basemap}
+          onValueChange={(v) => {
+            if (v) setBasemap(v);
+          }}
+          aria-label="底圖切換"
+          className="map-basemap-toggle bg-card shadow-md"
+        >
+          <ToggleGroupItem value="map">
+            <MapIcon />
             地圖
-          </Button>
-          <Button
-            size="sm"
-            variant={basemap === "satellite" ? "default" : "outline"}
-            onClick={() => setBasemap("satellite")}
-            className="map-basemap-btn"
-          >
-            <Satellite size={15} />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="satellite">
+            <Satellite />
             衛星
-          </Button>
-        </div>
+          </ToggleGroupItem>
+        </ToggleGroup>
 
         {/* Desktop: fixed left panel, always visible, never collapsible. */}
         <aside className="map-panel" aria-label="健行路線">

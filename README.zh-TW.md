@@ -2,10 +2,11 @@
 
 [English](./README.md)
 
-溫哥華**長青健行社（Evergreen Hiking Club）**的互動式健行路線地圖與社群數據看板，收錄 2019 年以來所有已走過的社團健行紀錄、路線軌跡、集合地點、估算距離與時間，以及當天 Facebook 專頁的照片與影片連結。
+溫哥華**長青健行社（Evergreen Hiking Club）**的全端健行路線地圖、社群數據看板與 Cloudflare Worker API，收錄 2019 年以來所有已走過的社團健行紀錄、路線軌跡、集合地點、估算距離與時間，以及當天 Facebook 專頁的照片與影片連結。
 
 - **健行地圖**：https://vanhiking.vercel.app
 - **數據看板**：https://vanhiking.vercel.app/dashboard
+- **API 文件（Swagger UI）**：https://vanhiking-api.ansung.dev/docs
 
 ---
 
@@ -17,6 +18,7 @@
 - **Facebook 貼文連動**：透過 `GET /posts/:id` 取得貼文類型，自動將連結標示為「照片」或「影片」，直接開啟當天專頁貼文。
 - **行動裝置優先設計**：桌面版固定顯示左側清單；手機版使用可拖曳的底部抽屜（Drawer）。
 - **社群數據看板（`/dashboard`）**：提供月度觸及人數與互動率趨勢圖（Recharts）、貼文表現與受眾分析。
+- **後端 Worker API（`api/`）**：基於 Cloudflare Worker 與 D1（`SharedDB`），支援自動產生 OpenAPI 3 文件（`/docs`）。
 
 ---
 
@@ -26,6 +28,7 @@
 git clone https://github.com/dev-ansung/van-hiking.git
 cd van-hiking
 npm install
+npm test
 npm run dev
 ```
 
@@ -35,6 +38,8 @@ npm run dev
 npm run build
 npm run start
 ```
+
+後端 Worker 部署與說明請見 [`api/README.md`](./api/README.md)。
 
 ---
 

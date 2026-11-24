@@ -8,15 +8,17 @@ Read this file in full before modifying anything in this repository. Where anyth
 
 - **Live Site**: https://vanhiking.vercel.app (map site for the Evergreen Hiking Club / 長青健行社, Vancouver)
 - **Dashboard**: https://vanhiking.vercel.app/dashboard
-- **Scope**: **This repository is the frontend only.** The backend Cloudflare Worker (`vanhiking-api`) lives in a separate repository/directory and is not part of this repo.
+- **API Worker**: https://vanhiking-api.ansung.dev (Swagger UI at `/docs`, OpenAPI spec at `/openapi.json`)
+- **Scope**: Full-stack monorepo — Next.js 14 frontend at the repo root (`app/`, `components/`, `lib/`, `tests/`) and Cloudflare Worker backend under `api/` (`api/src/index.js`, `api/schema.sql`, `api/wrangler.toml`, `api/pull-fb.py`).
 - **Maintainer**: An Sung (`dev-ansung`).
 
 ---
 
-## 2. Backend API Dependency
+## 2. Backend API (`api/`)
 
 - **Base URL**: `https://vanhiking-api.ansung.dev` (Cloudflare Worker `vanhiking-api` + D1 `SharedDB`)
-- **Auth**: `GET` endpoints are public. `POST` endpoints require a Bearer gate password stored as a Worker secret — **never write secrets, tokens, or passwords into this repository, any file, or chat**.
+- **Auth**: `GET` endpoints are public. `POST` / `DELETE` endpoints require `Authorization: Bearer <GATE_PASSWORD>` stored as a Worker secret (fail-closed) — **never write secrets, tokens, or passwords into this repository, any file, or chat**.
+- **Async Error Handling**: In `api/src/index.js`, async handlers inside `try` blocks must use `return await ...` (a bare `return promise` lets D1 errors escape `catch` as uncaught Cloudflare `1101` exceptions).
 - **Endpoints**:
   - `GET /hikes` — Hike routes (`post_ids`, `meeting_point`, `geometry`, `distance_km`, `est_duration_min`)
   - `GET /posts` — Facebook posts
@@ -24,7 +26,8 @@ Read this file in full before modifying anything in this repository. Where anyth
   - `GET /snapshots` — Daily insights snapshots
   - `GET /audience` — Audience data
   - `GET /stats` — Summary totals
-- **D1 Tables**: `social_accounts`, `social_daily_snapshots`, `social_posts`, `social_audience`, `social_hikes`
+  - `GET /openapi.json` & `GET /docs` — OpenAPI 3 spec and Swagger UI
+- **D1 Tables** (`api/schema.sql`): `social_accounts`, `social_daily_snapshots`, `social_posts`, `social_audience`, `social_hikes`
 - **Facebook Page**: 長青健行社 (`page_id: 775427925912036`, https://www.facebook.com/VancouverEvergreenHiking)
 - **Post URL Format**: `https://www.facebook.com/775427925912036/posts/{platform_post_id}`
 - **Note on Scripted Requests**: Automated scripts calling the Worker must send a browser `User-Agent` header (e.g. `Mozilla/5.0 ... Chrome/120.0`); otherwise Cloudflare may return `1010`.
