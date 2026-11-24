@@ -38,6 +38,21 @@ async function getJSON(path) {
   return res.json();
 }
 
+// Post-type cache for the detail-card Facebook links: the hikes API carries
+// only post_ids, so the card looks each post's type up via GET /posts/:id.
+// Module-level so both panel instances (desktop panel + mobile sheet) share
+// it; a looked-up type is never refetched. null = lookup failed or the type
+// is neither photo nor video — the generic label stays in that case.
+const postTypeCache = new Map(); // platform_post_id -> "photo" | "video" | null
+const postTypeInflight = new Set();
+
+function postLinkLabel(pid, index, total) {
+  const type = postTypeCache.get(pid);
+  if (type === "photo") return "在 Facebook 查看照片";
+  if (type === "video") return "在 Facebook 查看影片";
+  return total > 1 ? `在 Facebook 查看貼文 ${index + 1}` : "在 Facebook 查看";
+}
+
 // Estimated minutes -> "約 2 小時 37 分鐘" (estimates only, never measured).
 function fmtEstMin(min) {
   if (min === null || min === undefined || min === "") return "—";
@@ -137,6 +152,42 @@ function PanelContent(props) {
     onClearSelection,
     loading,
   } = props;
+
+  // Resolve the selected hike's post types for the Facebook link labels.
+  // Links render immediately with the generic label; the type label swaps
+  // in when the lookup resolves (cached, so re-tapping never refetches).
+  const [, setPostTypeTick] = useState(0);
+  useEffect(() => {
+    if (!selected || !Array.isArray(selected.post_ids)) return;
+    const missing = selected.post_ids.filter(
+      (pid) => !postTypeCache.has(pid) && !postTypeInflight.has(pid)
+    );
+    if (missing.length === 0) return;
+    let cancelled = false;
+    missing.forEach((pid) => postTypeInflight.add(pid));
+    Promise.all(
+      missing.map(async (pid) => {
+        try {
+          const row = await getJSON(`/posts/${encodeURIComponent(pid)}`);
+          postTypeCache.set(
+            pid,
+            row && (row.post_type === "photo" || row.post_type === "video")
+              ? row.post_type
+              : null
+          );
+        } catch {
+          postTypeCache.set(pid, null);
+        } finally {
+          postTypeInflight.delete(pid);
+        }
+      })
+    ).then(() => {
+      if (!cancelled) setPostTypeTick((t) => t + 1);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
 
   return (
     <div className="panel-body">
@@ -252,9 +303,7 @@ function PanelContent(props) {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {selected.post_ids.length > 1
-                    ? `在 Facebook 查看貼文 ${i + 1}`
-                    : "在 Facebook 查看"}
+                  {postLinkLabel(pid, i, selected.post_ids.length)}
                 </a>
               ))}
             </div>
