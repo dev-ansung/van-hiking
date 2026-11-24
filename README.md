@@ -12,6 +12,7 @@ Full-stack route map, analytics dashboard, and Cloudflare Worker API for the **E
 - **Live Map**: https://vanhiking.vercel.app
 - **Analytics Dashboard**: https://vanhiking.vercel.app/dashboard
 - **API Docs (Swagger UI)**: https://vanhiking-api.ansung.dev/docs
+- **Architecture Deep Dive**: [`TECHNICAL.md`](./TECHNICAL.md)
 
 ---
 
