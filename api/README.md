@@ -1,15 +1,13 @@
 # vanhiking-api
 
-Social-media data store for the vanhiking dashboard (Vancouver
-Evergreen Hiking Club Facebook Page + the user's own Instagram /
-Threads). Muse pulls fresh numbers via the Facebook / Instagram /
-Threads CLIs and POSTs them here on a daily cron; the Vercel app
-(`vanhiking`) reads the public GET endpoints. D1 (SharedDB) is the
-store of record.
+Social-media and hike data store for the vanhiking map and dashboard (Vancouver
+Evergreen Hiking Club Facebook Page). `pull-fb.py` pulls fresh insights and posts
+and POSTs them here; the Next.js frontend (`vanhiking`) reads the public GET
+endpoints. Cloudflare D1 (`SharedDB`) is the store of record.
 
-Four tables:
+Five tables (`schema.sql`):
 - `social_accounts` — one row per account/page, keyed by `id`
-  (e.g. `fb-changqing`, `ig-devansung`, `threads-devansung`).
+  (e.g. `fb-changqing`).
 - `social_daily_snapshots` — one row per account per day: follower
   count, views, unique viewers, engagement (with and without clicks),
   profile visits, new/unfollowers, net followers, messaging

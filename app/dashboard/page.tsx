@@ -39,6 +39,13 @@ import {
   postTypeLabel,
   summarizeTrend,
 } from "@/lib/insights";
+import type {
+  Account,
+  AudienceRow,
+  Post,
+  Snapshot,
+  StatsResponse,
+} from "@/lib/types";
 
 const SECTIONS = [
   { id: "overview", label: "數據總覽" },
@@ -46,7 +53,7 @@ const SECTIONS = [
   { id: "audience", label: "受眾" },
 ];
 
-function BarList({ title, rows }) {
+function BarList({ title, rows }: { title: string; rows: AudienceRow[] }) {
   if (!rows || rows.length === 0) {
     return (
       <div>
@@ -65,7 +72,10 @@ function BarList({ title, rows }) {
           <span className="bar-track">
             <span
               className="bar-fill"
-              style={{ display: "block", width: `${((Number(r.value) || 0) / max) * 100}%` }}
+              style={{
+                display: "block",
+                width: `${((Number(r.value) || 0) / max) * 100}%`,
+              }}
             />
           </span>
           <span className="val">
@@ -78,11 +88,11 @@ function BarList({ title, rows }) {
 }
 
 export default function DashboardPage() {
-  const [accounts, setAccounts] = useState([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [selected, setSelected] = useState(DEFAULT_ACCOUNT);
-  const [snapshots, setSnapshots] = useState([]);
-  const [posts, setPosts] = useState([]);
-  const [audience, setAudience] = useState([]);
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [audience, setAudience] = useState<AudienceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
@@ -92,8 +102,10 @@ export default function DashboardPage() {
     (async () => {
       try {
         const [acc, stats] = await Promise.all([
-          getJSON("/accounts").catch(() => ({ accounts: [] })),
-          getJSON("/stats").catch(() => null),
+          getJSON<{ accounts?: Account[] }>("/accounts").catch(() => ({
+            accounts: [],
+          })),
+          getJSON<StatsResponse | null>("/stats").catch(() => null),
         ]);
         if (cancelled) return;
         const list = Array.isArray(acc.accounts) ? acc.accounts : [];
@@ -102,7 +114,7 @@ export default function DashboardPage() {
         if (list.length > 0 && !list.some((a) => a.id === DEFAULT_ACCOUNT)) {
           setSelected(list[0].id);
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) setError("無法連到後台 API，請稍後再試。");
       } finally {
         if (!cancelled) setLoading(false);
@@ -113,19 +125,23 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const loadAccount = useCallback(async (accountId) => {
+  const loadAccount = useCallback(async (accountId: string) => {
     setLoading(true);
     setError("");
     try {
       const [snap, pst, aud] = await Promise.all([
         fetchAllSnapshots(accountId),
-        getJSON(`/posts?account_id=${encodeURIComponent(accountId)}&limit=50`).catch(() => ({ posts: [] })),
-        getJSON(`/audience?account_id=${encodeURIComponent(accountId)}`).catch(() => ({ audience: [] })),
+        getJSON<{ posts?: Post[] }>(
+          `/posts?account_id=${encodeURIComponent(accountId)}&limit=50`
+        ).catch(() => ({ posts: [] })),
+        getJSON<{ audience?: AudienceRow[] }>(
+          `/audience?account_id=${encodeURIComponent(accountId)}`
+        ).catch(() => ({ audience: [] })),
       ]);
       setSnapshots(snap);
       setPosts(Array.isArray(pst.posts) ? pst.posts : []);
       setAudience(Array.isArray(aud.audience) ? aud.audience : []);
-    } catch (e) {
+    } catch {
       setError("無法連到後台 API，請稍後再試。");
       setSnapshots([]);
       setPosts([]);
@@ -141,7 +157,9 @@ export default function DashboardPage() {
 
   const latest = useMemo(() => {
     if (snapshots.length === 0) return null;
-    const sorted = [...snapshots].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const sorted = [...snapshots].sort((a, b) =>
+      String(a.date).localeCompare(String(b.date))
+    );
     return sorted[sorted.length - 1];
   }, [snapshots]);
 
@@ -161,7 +179,7 @@ export default function DashboardPage() {
   );
 
   const selectedAccount = accounts.find((a) => a.id === selected);
-  const tabs =
+  const tabs: Account[] =
     accounts.length > 0
       ? accounts
       : [{ id: DEFAULT_ACCOUNT, name: "長青健行社", platform: "facebook" }];
@@ -355,7 +373,7 @@ export default function DashboardPage() {
                                     return "—";
                                   return name === "互動率"
                                     ? `${value}%`
-                                    : fmt(value);
+                                    : fmt(value as number);
                                 }}
                               />
                               <Legend />
@@ -472,7 +490,12 @@ export default function DashboardPage() {
                       </CardContent>
                       {p.platform_post_id ? (
                         <CardFooter>
-                          <Button variant="link" size="sm" asChild className="px-0">
+                          <Button
+                            variant="link"
+                            size="sm"
+                            asChild
+                            className="px-0"
+                          >
                             <a
                               href={`https://www.facebook.com/775427925912036/posts/${p.platform_post_id}`}
                               target="_blank"
@@ -508,10 +531,7 @@ export default function DashboardPage() {
                           title="國家／地區（前 10）"
                           rows={audByDim.country}
                         />
-                        <BarList
-                          title="城市（前 10）"
-                          rows={audByDim.city}
-                        />
+                        <BarList title="城市（前 10）" rows={audByDim.city} />
                       </div>
                     )}
                   </CardContent>

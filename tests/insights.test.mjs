@@ -7,7 +7,7 @@ import {
   groupAudienceByDimension,
   postTypeLabel,
   summarizeTrend,
-} from "../lib/insights.js";
+} from "../lib/insights.ts";
 
 test("fmt and fmtSigned handle numbers and empty values", () => {
   assert.equal(fmt(null), "—");

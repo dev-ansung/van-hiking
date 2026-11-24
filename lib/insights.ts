@@ -1,18 +1,26 @@
-export function fmt(n) {
+import type {
+  AudienceRow,
+  MonthlyTrendPoint,
+  PostType,
+  Snapshot,
+  TrendSummary,
+} from "./types.ts";
+
+export function fmt(n: number | string | null | undefined): string {
   if (n === null || n === undefined || n === "") return "—";
   const num = Number(n);
   if (Number.isNaN(num)) return String(n);
   return num.toLocaleString("en-US");
 }
 
-export function fmtSigned(n) {
+export function fmtSigned(n: number | string | null | undefined): string {
   if (n === null || n === undefined || n === "") return "—";
   const num = Number(n);
   if (Number.isNaN(num)) return String(n);
   return (num > 0 ? "+" : "") + num.toLocaleString("en-US");
 }
 
-export function postTypeLabel(t) {
+export function postTypeLabel(t: PostType | undefined): string {
   if (t === "video") return "影片";
   if (t === "photo") return "相片";
   if (t === "reel") return "短片";
@@ -24,13 +32,23 @@ export function postTypeLabel(t) {
  * - Excludes the 2026-11-21 LAST_28D aggregate row.
  * - Leaves months with zero/missing daily reach (e.g. before 2024-08) as null (blank), never 0.
  */
-export function buildMonthlyTrend(snapshots) {
+export function buildMonthlyTrend(snapshots: Snapshot[]): MonthlyTrendPoint[] {
   const daily = snapshots.filter(
     (s) => s && s.date && String(s.date) !== "2026-11-21"
   );
   if (daily.length === 0) return [];
 
-  const byMonth = new Map();
+  const byMonth = new Map<
+    string,
+    {
+      month: string;
+      views: number;
+      engagements: number;
+      followers: number | null;
+      lastDate: string;
+    }
+  >();
+
   for (const s of daily) {
     const month = String(s.date).slice(0, 7);
     const row = byMonth.get(month) || {
@@ -61,7 +79,7 @@ export function buildMonthlyTrend(snapshots) {
   }
 
   const months = [...byMonth.keys()].sort();
-  const filled = [];
+  const filled: MonthlyTrendPoint[] = [];
   let [y, mo] = months[0].split("-").map(Number);
   const [ey, emo] = months[months.length - 1].split("-").map(Number);
 
@@ -97,15 +115,17 @@ export function buildMonthlyTrend(snapshots) {
   return filled;
 }
 
-export function summarizeTrend(trend) {
+export function summarizeTrend(
+  trend: MonthlyTrendPoint[]
+): TrendSummary | null {
   if (trend.length === 0) return null;
   const withData = trend.filter(
     (r) => r.views !== null && r.views !== undefined
   );
   if (withData.length === 0) return null;
-  const totalViews = withData.reduce((s, r) => s + r.views, 0);
+  const totalViews = withData.reduce((s, r) => s + (r.views ?? 0), 0);
   const best = withData.reduce(
-    (a, b) => (b.views > a.views ? b : a),
+    (a, b) => ((b.views ?? 0) > (a.views ?? 0) ? b : a),
     withData[0]
   );
   const firstFollowers = trend[0].followers;
@@ -123,12 +143,24 @@ export function summarizeTrend(trend) {
   };
 }
 
-export function groupAudienceByDimension(audience) {
-  const out = { age: [], gender: [], country: [], city: [] };
+export interface AudienceGroups {
+  age: AudienceRow[];
+  gender: AudienceRow[];
+  country: AudienceRow[];
+  city: AudienceRow[];
+}
+
+export function groupAudienceByDimension(
+  audience: AudienceRow[]
+): AudienceGroups {
+  const out: AudienceGroups = { age: [], gender: [], country: [], city: [] };
   for (const row of audience) {
-    if (out[row.dimension]) out[row.dimension].push(row);
+    if (row.dimension === "age") out.age.push(row);
+    else if (row.dimension === "gender") out.gender.push(row);
+    else if (row.dimension === "country") out.country.push(row);
+    else if (row.dimension === "city") out.city.push(row);
   }
-  const byVal = (arr) =>
+  const byVal = (arr: AudienceRow[]) =>
     [...arr].sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
   out.country = byVal(out.country).slice(0, 10);
   out.city = byVal(out.city).slice(0, 10);

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fetchAllHikes, fetchAllSnapshots } from "../lib/api.js";
+import { fetchAllHikes, fetchAllSnapshots } from "../lib/api.ts";
 
 test("fetchAllHikes paginates with limit=100 until total is reached", async () => {
   const calls = [];

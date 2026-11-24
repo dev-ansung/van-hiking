@@ -1,11 +1,21 @@
-"use client";
+"use client"
+
+import type { HTMLAttributes, TimeHTMLAttributes } from "react"
 import { createContext, useCallback, useContext, useState } from "react"
 import { Slot } from "radix-ui"
 
 import { cn } from "cn"
 
+// Types
+type TimelineContextValue = {
+  activeStep: number
+  setActiveStep: (step: number) => void
+}
+
 // Context
-const TimelineContext = createContext(undefined)
+const TimelineContext = createContext<TimelineContextValue | undefined>(
+  undefined
+)
 
 const useTimeline = () => {
   const context = useContext(TimelineContext)
@@ -13,6 +23,14 @@ const useTimeline = () => {
     throw new Error("useTimeline must be used within a Timeline")
   }
   return context
+}
+
+// Components
+interface TimelineProps extends HTMLAttributes<HTMLDivElement> {
+  defaultValue?: number
+  value?: number
+  onValueChange?: (value: number) => void
+  orientation?: "horizontal" | "vertical"
 }
 
 function Timeline({
@@ -23,11 +41,11 @@ function Timeline({
   className,
   children,
   ...props
-}) {
+}: TimelineProps) {
   const [activeStep, setInternalStep] = useState(defaultValue)
 
   const setActiveStep = useCallback(
-    (step) => {
+    (step: number) => {
       if (value === undefined) {
         setInternalStep(step)
       }
@@ -61,7 +79,7 @@ function Timeline({
 function TimelineContent({
   className,
   ...props
-}) {
+}: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn("text-muted-foreground text-sm", className)}
@@ -71,11 +89,18 @@ function TimelineContent({
   )
 }
 
+// TimelineDate
+// TimeHTMLAttributes (not the generic HTMLAttributes) so the <time>-specific `dateTime`
+// attribute is accepted — matches the base wrapper's useRender.ComponentProps<"time">.
+interface TimelineDateProps extends TimeHTMLAttributes<HTMLTimeElement> {
+  asChild?: boolean
+}
+
 function TimelineDate({
   asChild = false,
   className,
   ...props
-}) {
+}: TimelineDateProps) {
   const Comp = asChild ? Slot.Root : "time"
 
   return (
@@ -94,10 +119,15 @@ function TimelineDate({
 function TimelineHeader({
   className,
   ...props
-}) {
+}: HTMLAttributes<HTMLDivElement>) {
   return (
     <div className={cn(className)} data-slot="timeline-header" {...props} />
   )
+}
+
+// TimelineIndicator
+interface TimelineIndicatorProps extends HTMLAttributes<HTMLDivElement> {
+  asChild?: boolean
 }
 
 function TimelineIndicator({
@@ -105,7 +135,7 @@ function TimelineIndicator({
   className,
   children,
   ...props
-}) {
+}: TimelineIndicatorProps) {
   const Comp = asChild ? Slot.Root : "div"
 
   return (
@@ -123,11 +153,12 @@ function TimelineIndicator({
   )
 }
 
-function TimelineItem({
-  step,
-  className,
-  ...props
-}) {
+// TimelineItem
+interface TimelineItemProps extends HTMLAttributes<HTMLDivElement> {
+  step: number
+}
+
+function TimelineItem({ step, className, ...props }: TimelineItemProps) {
   const { activeStep } = useTimeline()
 
   return (
@@ -147,7 +178,7 @@ function TimelineItem({
 function TimelineSeparator({
   className,
   ...props
-}) {
+}: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       aria-hidden="true"
@@ -165,7 +196,7 @@ function TimelineSeparator({
 function TimelineTitle({
   className,
   ...props
-}) {
+}: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
       className={cn("text-sm font-medium", className)}

@@ -11,10 +11,14 @@ import {
   RouteProgress,
   useMap,
 } from "@/components/ui/map";
+import type { HikeWithMeta, Waypoint } from "@/lib/types";
+
+type LngLat = [number, number];
+type Bounds = [LngLat, LngLat];
 
 // One distinct color per hike so pins/routes can be told apart at a glance.
 export const ROUTE_COLORS = ["#1a73e8", "#7c3aed", "#0d9488", "#ea580c"];
-export function routeColor(i) {
+export function routeColor(i: number): string {
   return ROUTE_COLORS[i % ROUTE_COLORS.length];
 }
 
@@ -22,10 +26,10 @@ export function routeColor(i) {
 // `styles` for satellite mode; the mapcn component swaps styles through its
 // own effect, so pins/routes tear down and re-add like a theme change.
 const ESRI_WORLD_IMAGERY = {
-  version: 8,
+  version: 8 as const,
   sources: {
     esri: {
-      type: "raster",
+      type: "raster" as const,
       tiles: [
         "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       ],
@@ -34,7 +38,7 @@ const ESRI_WORLD_IMAGERY = {
         "Esri, Maxar, Earthstar Geographics, and the GIS User Community",
     },
   },
-  layers: [{ id: "esri", type: "raster", source: "esri" }],
+  layers: [{ id: "esri", type: "raster" as const, source: "esri" }],
 };
 
 // Padding keeps the route/pins clear of the floating UI: on desktop the
@@ -47,12 +51,7 @@ function cameraPadding() {
   return { top: 60, bottom: 180, left: 24, right: 24 };
 }
 
-// Fly the map to the given bounds whenever they change. A single point has
-// zero-area bounds; fitBounds would zoom to the map's max zoom, where the
-// CARTO basemap has no tiles (black map). So a lone pin flies to a fixed
-// street-level zoom instead, and fitBounds is clamped so even a very short
-// route never flies past tile coverage.
-function FlyTo({ bounds }) {
+function FlyTo({ bounds }: { bounds: Bounds | null }) {
   const { map, isLoaded } = useMap();
   useEffect(() => {
     if (!map || !isLoaded || !bounds) return;
@@ -70,7 +69,7 @@ function FlyTo({ bounds }) {
   return null;
 }
 
-function boundsOf(coords) {
+function boundsOf(coords: LngLat[]): Bounds | null {
   if (!coords || coords.length === 0) return null;
   let minLng = 180;
   let minLat = 90;
@@ -88,24 +87,26 @@ function boundsOf(coords) {
   ];
 }
 
-function hikeCoords(h) {
-  return h && h.geometry && Array.isArray(h.geometry.coordinates)
-    ? h.geometry.coordinates
-    : [];
+function hikeCoords(h: HikeWithMeta): LngLat[] {
+  if (h?.geometry && Array.isArray(h.geometry.coordinates)) {
+    return h.geometry.coordinates as LngLat[];
+  }
+  return [];
 }
 
 // Meeting point = first waypoint (route start).
-function meetingPoint(h) {
+function meetingPoint(h: HikeWithMeta): Waypoint | null {
   const wps = Array.isArray(h.waypoints) ? h.waypoints : [];
   return wps.length > 0 ? wps[0] : null;
 }
 
-// Meeting-point pins, one per hike at every zoom level — no clustering
-// (removed at the user's word: tapping a pin narrows the list to that
-// hike's week instead, so the map never has to hide pins). Non-selected
-// pins render muted while a route is shown so the selected route stays
-// the focus.
-function Pins({ hikes, selectedIndex, onSelect }) {
+interface PinsProps {
+  hikes: HikeWithMeta[];
+  selectedIndex: number | null;
+  onSelect: (index: number) => void;
+}
+
+function Pins({ hikes, selectedIndex, onSelect }: PinsProps) {
   return (
     <>
       {hikes.map((h, i) => {
@@ -140,22 +141,22 @@ function Pins({ hikes, selectedIndex, onSelect }) {
   );
 }
 
-// Pins-only map. One pin per hike at its meeting point; no routes drawn by
-// default. Tapping a pin (or its Timeline entry) draws that hike's route
-// progressively from the start point, with a moving dot at the drawing head.
-// The draw is a small requestAnimationFrame loop driving MapRoute's
-// `progress` prop; the shipped mapcn component slices the route via setData
-// internally (RouteProgress) and pins the dot via RouteMarker at="progress".
-// Tapping another pin cancels the current animation and draws the new route;
-// tapping the same pin hides the route again. While a route is shown the
-// other pins stay visible but muted (smaller, gray) — Google Maps shows
-// alternatives muted instead of hiding them.
-export default function HikesMap({ hikes, selectedIndex, onSelect, basemap }) {
-  const [progress, setProgress] = useState(0);
-  const rafRef = useRef(null);
+export interface HikesMapProps {
+  hikes: HikeWithMeta[];
+  selectedIndex: number | null;
+  onSelect: (index: number) => void;
+  basemap: "map" | "satellite";
+}
 
-  // Satellite mode uses the Esri raster style for both themes; otherwise the
-  // mapcn CARTO light/dark defaults apply (styles undefined).
+export default function HikesMap({
+  hikes,
+  selectedIndex,
+  onSelect,
+  basemap,
+}: HikesMapProps) {
+  const [progress, setProgress] = useState(0);
+  const rafRef = useRef<number>(0);
+
   const styles =
     basemap === "satellite"
       ? { dark: ESRI_WORLD_IMAGERY, light: ESRI_WORLD_IMAGERY }
@@ -166,36 +167,28 @@ export default function HikesMap({ hikes, selectedIndex, onSelect, basemap }) {
       ? null
       : hikes[selectedIndex] || null;
 
-  const pinCoords = useMemo(
+  const pinCoords = useMemo<LngLat[]>(
     () =>
       hikes
-        .map((h) => {
+        .map((h): LngLat | null => {
           const mp = meetingPoint(h);
           return mp ? [mp.lng, mp.lat] : null;
         })
-        .filter(Boolean),
+        .filter((c): c is LngLat => c !== null),
     [hikes]
   );
 
-  // Camera target: the selected route PLUS every meeting-point pin, so the
-  // muted pins always stay on screen and clickable (Google Maps keeps
-  // alternatives visible instead of hiding them). Fitting only the route
-  // zooms tight onto it and pushes the other pins thousands of pixels
-  // off-screen, where they can neither be seen nor clicked.
   const targetBounds = useMemo(() => {
     if (selected)
       return boundsOf([...hikeCoords(selected), ...pinCoords]);
     return boundsOf(pinCoords);
   }, [selected, pinCoords]);
 
-  const center = useMemo(() => {
+  const center = useMemo<LngLat>(() => {
     if (pinCoords.length > 0) return pinCoords[0];
     return [-123.12, 49.28]; // Vancouver fallback
   }, [pinCoords]);
 
-  // Animate the selected route drawing itself, 0 -> 1. Duration scales with
-  // distance: ~1s for the shortest routes, ~2s for the longest (12.93 km).
-  // Cleanup cancels the frame, so switching pins stops the old draw at once.
   useEffect(() => {
     if (!selected) {
       setProgress(0);
@@ -206,7 +199,7 @@ export default function HikesMap({ hikes, selectedIndex, onSelect, basemap }) {
     const start = performance.now();
     cancelAnimationFrame(rafRef.current);
     setProgress(0);
-    const tick = (now) => {
+    const tick = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
       setProgress(t);
       if (t < 1) rafRef.current = requestAnimationFrame(tick);
@@ -216,8 +209,8 @@ export default function HikesMap({ hikes, selectedIndex, onSelect, basemap }) {
   }, [selected]);
 
   const selectedColor = selected
-    ? routeColor(selected._idx ?? selectedIndex)
-    : null;
+    ? routeColor(selected._idx ?? selectedIndex ?? 0)
+    : "#1a73e8";
   const selectedWaypoints = selected
     ? (Array.isArray(selected.waypoints) ? selected.waypoints : []).slice(1)
     : [];
@@ -229,9 +222,7 @@ export default function HikesMap({ hikes, selectedIndex, onSelect, basemap }) {
 
         <Pins hikes={hikes} selectedIndex={selectedIndex} onSelect={onSelect} />
 
-        {/* Selected route: base line hidden, RouteProgress draws the traveled
-            slice, RouteMarker rides the drawing head. */}
-        {selected && (
+        {selected && selectedIndex !== null && (
           <MapRoute
             key={selected.id || selected.hike_date}
             id={`hike-${selected.id || selectedIndex}`}
@@ -256,8 +247,8 @@ export default function HikesMap({ hikes, selectedIndex, onSelect, basemap }) {
           </MapRoute>
         )}
 
-        {/* Intermediate/end stops of the selected hike, once drawn. */}
         {selected &&
+          selectedIndex !== null &&
           progress >= 1 &&
           selectedWaypoints.map((w, j) => (
             <MapMarker

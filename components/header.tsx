@@ -5,7 +5,11 @@ import { Mountain } from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 
-export default function Header({ active }) {
+export interface HeaderProps {
+  active: "map" | "dashboard";
+}
+
+export default function Header({ active }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 border-b bg-card">
       <div className="mx-auto flex max-w-[1080px] items-center justify-between gap-3 px-4 py-2.5">

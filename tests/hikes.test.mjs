@@ -7,7 +7,7 @@ import {
   postLinkLabel,
   recentCutoffStr,
   searchText,
-} from "../lib/hikes.js";
+} from "../lib/hikes.ts";
 
 test("fmtEstMin formats minutes and hours as estimates", () => {
   assert.equal(fmtEstMin(null), "—");

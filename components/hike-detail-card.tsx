@@ -12,8 +12,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { fmtEstMin, postLinkLabel } from "@/lib/hikes";
+import type { HikeWithMeta, PostType } from "@/lib/types";
 
-export function HikeDetailCard({ hike, getPostType, onClose }) {
+export interface HikeDetailCardProps {
+  hike: HikeWithMeta | null;
+  getPostType: (pid: string) => PostType | undefined;
+  onClose: () => void;
+}
+
+export function HikeDetailCard({
+  hike,
+  getPostType,
+  onClose,
+}: HikeDetailCardProps) {
   if (!hike) return null;
 
   return (
@@ -68,7 +79,7 @@ export function HikeDetailCard({ hike, getPostType, onClose }) {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {postLinkLabel(getPostType(pid), i, hike.post_ids.length)}
+                  {postLinkLabel(getPostType(pid), i, hike.post_ids!.length)}
                 </a>
               </Button>
             ))}

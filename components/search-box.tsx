@@ -8,7 +8,13 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 
-export function SearchBox({ value, onChange, autoFocus }) {
+export interface SearchBoxProps {
+  value: string;
+  onChange: (value: string) => void;
+  autoFocus?: boolean;
+}
+
+export function SearchBox({ value, onChange, autoFocus }: SearchBoxProps) {
   return (
     <InputGroup className="h-11 rounded-full bg-card shadow-md">
       <InputGroupAddon align="inline-start">

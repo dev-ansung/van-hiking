@@ -37,24 +37,44 @@ import {
   isoYearWeek,
   recentCutoffStr,
 } from "@/lib/hikes";
+import type { Hike, HikeWithMeta, Post, PostType } from "@/lib/types";
 
 const HikesMap = dynamic(() => import("@/components/hike-map"), {
   ssr: false,
   loading: () => <p className="empty">地圖載入中…</p>,
 });
 
-// Post-type cache for the detail-card Facebook links: the hikes API carries
-// only post_ids, so the card looks each post's type up via GET /posts/:id.
-// Module-level so both panel instances (desktop panel + mobile sheet) share
-// it; a looked-up type is never refetched. null = lookup failed or the type
-// is neither photo nor video — the generic label stays in that case.
-const postTypeCache = new Map(); // platform_post_id -> "photo" | "video" | null
-const postTypeInflight = new Set();
+const postTypeCache = new Map<string, PostType>();
+const postTypeInflight = new Set<string>();
 
-// The panel/sheet content, shared by the desktop fixed panel and the mobile
-// bottom sheet. Defined at module level (not inside Page) so the search
-// input keeps focus while typing.
-function PanelContent(props) {
+interface SavedFilter {
+  yearFilter: string;
+  weekFilter: string;
+  listLimit: number;
+}
+
+interface PanelContentProps {
+  showSearch: boolean;
+  query: string;
+  onQueryChange: (v: string) => void;
+  years: number[];
+  weeks: number[];
+  yearFilter: string;
+  weekFilter: string;
+  onYearChange: (v: string) => void;
+  onWeekChange: (v: string) => void;
+  visible: HikeWithMeta[];
+  rendered: HikeWithMeta[];
+  listShown: number;
+  onLoadMore: () => void;
+  selectedVisible: number | null;
+  selected: HikeWithMeta | null;
+  onSelect: (visibleIdx: number) => void;
+  onClearSelection: () => void;
+  loading: boolean;
+}
+
+function PanelContent(props: PanelContentProps) {
   const {
     showSearch,
     query,
@@ -76,9 +96,6 @@ function PanelContent(props) {
     loading,
   } = props;
 
-  // Resolve the selected hike's post types for the Facebook link labels.
-  // Links render immediately with the generic label; the type label swaps
-  // in when the lookup resolves (cached, so re-tapping never refetches).
   const [, setPostTypeTick] = useState(0);
   useEffect(() => {
     if (!selected || !Array.isArray(selected.post_ids)) return;
@@ -91,7 +108,7 @@ function PanelContent(props) {
     Promise.all(
       missing.map(async (pid) => {
         try {
-          const row = await getJSON(`/posts/${encodeURIComponent(pid)}`);
+          const row = await getJSON<Post>(`/posts/${encodeURIComponent(pid)}`);
           postTypeCache.set(
             pid,
             row && (row.post_type === "photo" || row.post_type === "video")
@@ -273,30 +290,23 @@ function PanelContent(props) {
 }
 
 export default function Page() {
-  const [hikes, setHikes] = useState([]);
-  // Index into the FULL hikes list; null = pins only, no route drawn.
-  const [selectedHike, setSelectedHike] = useState(null);
+  const [hikes, setHikes] = useState<Hike[]>([]);
+  const [selectedHike, setSelectedHike] = useState<number | null>(null);
   const [yearFilter, setYearFilter] = useState("recent");
   const [weekFilter, setWeekFilter] = useState("all");
   const [query, setQuery] = useState("");
-  const [basemap, setBasemap] = useState("map");
+  const [basemap, setBasemap] = useState<"map" | "satellite">("map");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  // List pagination: 10 rendered at a time; the map is not paginated.
   const [listLimit, setListLimit] = useState(PAGE_SIZE);
-  // Filter active before a pin tap narrowed the list to that hike's week;
-  // restored when the pin is tapped again or the detail card is closed.
-  const [savedFilter, setSavedFilter] = useState(null);
+  const [savedFilter, setSavedFilter] = useState<SavedFilter | null>(null);
 
-  // Cutoff date (YYYY-MM-DD) for the recent default, fixed at mount.
   const recentCutoff = useMemo(() => recentCutoffStr(), []);
 
-  // Desktop (fixed left panel) vs mobile (bottom sheet), via matchMedia.
   const [mounted, setMounted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  // Mobile bottom sheet: Vaul snap points — peek / half / full.
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [snap, setSnap] = useState("148px");
+  const [snap, setSnap] = useState<string | number | null>("148px");
 
   useEffect(() => {
     let cancelled = false;
@@ -304,7 +314,7 @@ export default function Page() {
       try {
         const all = await fetchAllHikes(DEFAULT_ACCOUNT);
         if (!cancelled) setHikes(all);
-      } catch (e) {
+      } catch {
         if (!cancelled) setError("無法連到後台 API，請稍後再試。");
       } finally {
         if (!cancelled) setLoading(false);
@@ -321,7 +331,6 @@ export default function Page() {
     const update = () => {
       const desktop = mq.matches;
       setIsDesktop(desktop);
-      // The sheet lives only on mobile: open at peek there, closed on desktop.
       setSheetOpen(!desktop);
     };
     update();
@@ -329,10 +338,7 @@ export default function Page() {
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  // Hikes annotated with their ISO year/week (computed in glue code; the API
-  // stores only hike_date). _idx is the index in the full list, so pin/route
-  // colors stay stable when the filter changes.
-  const hikesWithMeta = useMemo(
+  const hikesWithMeta = useMemo<HikeWithMeta[]>(
     () => hikes.map((h, i) => ({ ...h, _idx: i, ...isoYearWeek(h.hike_date) })),
     [hikes]
   );
@@ -364,14 +370,11 @@ export default function Page() {
     [hikesWithMeta, yearFilter, weekFilter, query, recentCutoff]
   );
 
-  // The rendered list slice: 10 at a time, newest first (hikes arrive
-  // newest-first from the API and filters preserve that order).
   const rendered = useMemo(
     () => visible.slice(0, listLimit),
     [visible, listLimit]
   );
 
-  // Index of the selected hike inside the filtered list (null if hidden).
   const selectedVisible =
     selectedHike === null
       ? null
@@ -383,9 +386,6 @@ export default function Page() {
   const selected =
     selectedVisible === null ? null : visible[selectedVisible] || null;
 
-  // After a pin tap narrows the list to that week, scroll the selected
-  // item into view. Both panel instances (desktop panel + mobile sheet)
-  // carry the data attribute; scrolling the hidden one is a no-op.
   useEffect(() => {
     if (selectedVisible === null) return;
     document.querySelectorAll("[data-selected-hike]").forEach((el) => {
@@ -393,28 +393,26 @@ export default function Page() {
     });
   }, [selectedVisible, rendered]);
 
-  const onYearChange = (v) => {
+  const onYearChange = (v: string) => {
     setYearFilter(v);
     setWeekFilter("all");
     setSelectedHike(null);
     setSavedFilter(null);
     setListLimit(PAGE_SIZE);
   };
-  const onWeekChange = (v) => {
+  const onWeekChange = (v: string) => {
     setWeekFilter(v);
     setSelectedHike(null);
     setSavedFilter(null);
     setListLimit(PAGE_SIZE);
   };
-  const onQueryChange = (v) => {
+  const onQueryChange = (v: string) => {
     setQuery(v);
     setSelectedHike(null);
     setSavedFilter(null);
     setListLimit(PAGE_SIZE);
   };
 
-  // Hide the route and restore the filter that was active before a pin tap
-  // narrowed the list to that hike's week (if any).
   const clearSelection = () => {
     if (savedFilter) {
       setYearFilter(savedFilter.yearFilter);
@@ -425,22 +423,14 @@ export default function Page() {
     setSelectedHike(null);
   };
 
-  // Tap a hike in the list to draw its route; tap it again to hide the
-  // route. On mobile the sheet opens to half so the detail card is visible.
-  // A hike selected from the list is expanded into the rendered list slice
-  // if it sits past the current 10-at-a-time page.
-  const selectHike = (visibleIdx) => {
+  const selectHike = (visibleIdx: number) => {
     const fullIdx = visible[visibleIdx] ? visible[visibleIdx]._idx : null;
     if (fullIdx !== null && selectedHike === fullIdx) {
       clearSelection();
       return;
     }
     setSelectedHike(fullIdx);
-    if (
-      visibleIdx !== null &&
-      visibleIdx !== undefined &&
-      visibleIdx >= listLimit
-    ) {
+    if (visibleIdx >= listLimit) {
       setListLimit(visibleIdx + 1);
     }
     if (!isDesktop) {
@@ -449,11 +439,7 @@ export default function Page() {
     }
   };
 
-  // Tap a pin on the map: same as tapping the list entry, plus the list
-  // narrows to that hike's ISO week so it never shows more than that
-  // week's hikes (usually 1-2). Tapping the same pin again hides the route
-  // and restores the filter from before the tap.
-  const selectHikeFromMap = (visibleIdx) => {
+  const selectHikeFromMap = (visibleIdx: number) => {
     const h = visible[visibleIdx];
     if (!h) return;
     if (selectedHike === h._idx) {
@@ -472,7 +458,7 @@ export default function Page() {
     }
   };
 
-  const panelProps = {
+  const panelProps: PanelContentProps = {
     showSearch: false,
     query,
     onQueryChange,
@@ -516,12 +502,10 @@ export default function Page() {
           />
         </div>
 
-        {/* Desktop: search floats over the map top, Google Maps style. */}
         <div className="map-search-overlay">
           <SearchBox value={query} onChange={onQueryChange} />
         </div>
 
-        {/* Map / satellite switch. Independent of the light/dark UI theme. */}
         <ToggleGroup
           type="single"
           variant="outline"
@@ -529,7 +513,7 @@ export default function Page() {
           spacing={0}
           value={basemap}
           onValueChange={(v) => {
-            if (v) setBasemap(v);
+            if (v === "map" || v === "satellite") setBasemap(v);
           }}
           aria-label="底圖切換"
           className="map-basemap-toggle bg-card shadow-md"
@@ -544,15 +528,12 @@ export default function Page() {
           </ToggleGroupItem>
         </ToggleGroup>
 
-        {/* Desktop: fixed left panel, always visible, never collapsible. */}
         <aside className="map-panel" aria-label="健行路線">
           <div className="map-panel-scroll">
             <PanelContent {...panelProps} />
           </div>
         </aside>
 
-        {/* Mobile: drag-up bottom sheet (shadcn Drawer / Vaul, non-modal so
-            the map stays interactive while the sheet is open). */}
         {mounted && !isDesktop && (
           <Drawer
             open={sheetOpen}
@@ -574,7 +555,6 @@ export default function Page() {
           </Drawer>
         )}
 
-        {/* Mobile: reopen the sheet after it was dragged down to dismiss. */}
         {mounted && !isDesktop && !sheetOpen && (
           <Button
             onClick={() => {
