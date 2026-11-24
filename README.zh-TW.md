@@ -7,6 +7,8 @@
 網站：https://vanhiking.vercel.app
 數據看板：https://vanhiking.vercel.app/dashboard
 
+這個 repo 除了網站，也包含後端 API（在 `api/` 資料夾裡，Cloudflare Worker，負責提供健行、貼文和統計資料）。
+
 ## 這個網站有什麼
 
 - **地圖**：從 2019 年到現在，社團每一次健行的路線都畫在地圖上，一共 202 趟，總共約 992 公里。

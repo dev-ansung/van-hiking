@@ -6,6 +6,7 @@ An interactive map of every hike taken by the Evergreen Hiking Club (長青健�
 
 - **Live site:** https://vanhiking.vercel.app
 - **Dashboard:** https://vanhiking.vercel.app/dashboard
+- **Repository:** this repo contains both the website and its backend API worker (under `api/` — a Cloudflare Worker that serves the hike, post, and insights data).
 
 ## What it shows
 

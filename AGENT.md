@@ -7,10 +7,10 @@ This document is for the Claude agent taking over maintenance of this repo. **Re
 - Site: https://vanhiking.vercel.app (map site for the Evergreen Hiking Club / 長青健行社, a Chinese-speaking hiking club in Vancouver)
 - Dashboard: https://vanhiking.vercel.app/dashboard
 - Content: 202 hikes already walked (2019 to present, ~992 km total), each linked to the photos / video posted on the club's Facebook Page that day.
-- **This repo is the frontend only.** The API worker source lives in `~/workspace/vanhiking-api/` and is not in this repo.
+- **This repo is the whole project: the frontend plus the backend worker.** The API worker source lives in `api/` in this repo (Cloudflare Worker `vanhiking-api`).
 - Maintainer: An Sung. The user (his parents) operates the Claude agent; they will ask you to keep updating and maintaining this repo.
 
-## Backend (not in this repo, but the frontend depends on it)
+## Backend (in `api/` — the frontend depends on it)
 
 - API: https://vanhiking-api.ansung.dev — Cloudflare Worker `vanhiking-api`, database is the shared D1 `SharedDB`.
 - GETs are public; POSTs require a Bearer gate password (stored as a worker secret — **never write it into the repo, into any file, or into chat**).
@@ -43,8 +43,8 @@ This document is for the Claude agent taking over maintenance of this repo. **Re
 - Frontend deploy: `python3 ~/workspace/custom-connectors/custom.legacy-vercel/bin/deploy_nextjs.py ~/workspace/vanhiking --name vanhiking`
 - **Always verify on https://vanhiking.vercel.app** — deployment-specific URLs 302-redirect to Vercel SSO and cannot be used.
 - Deploy body limit is 10 MB: the backfill record JSONs in `.records/` (~8 MB) must not go into a deploy; the deploy script skips dot-directories.
-- Worker deploy: `~/workspace/vanhiking-api/deploy.py` (Cloudflare API multipart PUT; the wrangler CLI cannot authenticate in this environment — do not use it).
-- Before editing the worker, read the existing patterns in `~/workspace/vanhiking-api/src/index.js`: async handlers must use `return await ...` (a bare `return promise` lets errors escape `catch` — this once caused a site-wide 1101).
+- Worker deploy: `python3 api/deploy.py` (run from the `api/` directory; Cloudflare API multipart PUT; the wrangler CLI cannot authenticate in this environment — do not use it).
+- Before editing the worker, read the existing patterns in `api/src/index.js`: async handlers must use `return await ...` (a bare `return promise` lets errors escape `catch` — this once caused a site-wide 1101).
 - Scripted calls to the worker must send a browser User-Agent (e.g. `Mozilla/5.0 ... Chrome/120.0`); otherwise Cloudflare returns 1010.
 
 ## Version control
@@ -84,7 +84,7 @@ This document is for the Claude agent taking over maintenance of this repo. **Re
 
 ## Known open items (do not start these unless the user says so)
 
-- The daily 07:00 automatic pull is not scheduled yet (`~/workspace/vanhiking-api/pull-fb.py` is written and smoke-tested; the gate password must be read from an environment variable, never written into a cron).
+- The daily 07:00 automatic pull is not scheduled yet (`api/pull-fb.py` is written and smoke-tested; the gate password must be read from an environment variable, never written into a cron).
 - The dashboard posts section shows only 50 of 368 posts (whether to paginate is his call).
 - The mobile ~390px layout has not been confirmed on a real phone.
 - Admin auto-posting to Facebook (text-only vs with photos) and the admin page's login method are undecided.

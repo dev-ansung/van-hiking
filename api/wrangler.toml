@@ -1,0 +1,8 @@
+name = "vanhiking-api"
+main = "src/index.js"
+compatibility_date = "2026-11-22"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "SharedDB"
+database_id = "6255b8d0-18e8-42ef-b494-783df13ab0ca"
