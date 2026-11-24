@@ -1,92 +1,92 @@
-# AGENT.md — vanhiking 維護手冊
+# AGENT.md — vanhiking Maintainer Guide
 
-這份文件是給接手維護這個 repo 的 Claude agent 看的。**先讀完這份文件再動手。** 有任何地方跟使用者的決定牴觸，以使用者的決定為準；不確定的事先問他，不要自己改掉。
+This document is for the Claude agent taking over maintenance of this repo. **Read it fully before changing anything.** Where anything here conflicts with the user's decisions, the user's decisions win; when in doubt, ask him first — do not change a decision on your own.
 
-## 專案總覽
+## Project overview
 
-- 網站：https://vanhiking.vercel.app（長青健行社 Evergreen Hiking Club，溫哥華華人健行社團的地圖網站）
-- 數據看板：https://vanhiking.vercel.app/dashboard
-- 內容：202 趟已走過的健行路線（2019 年至今，總計約 992 公里），每一趟都連結到 Facebook 專頁當天的照片／影片貼文。
-- **這個 repo 只有前端。** API worker 的原始碼在 `~/workspace/vanhiking-api/`，不在這個 repo 裡。
-- 維護者：An Sung。使用者（他的父母）是 Claude agent 的操作者，他們會請你繼續更新維護這個 repo。
+- Site: https://vanhiking.vercel.app (map site for the Evergreen Hiking Club / 長青健行社, a Chinese-speaking hiking club in Vancouver)
+- Dashboard: https://vanhiking.vercel.app/dashboard
+- Content: 202 hikes already walked (2019 to present, ~992 km total), each linked to the photos / video posted on the club's Facebook Page that day.
+- **This repo is the frontend only.** The API worker source lives in `~/workspace/vanhiking-api/` and is not in this repo.
+- Maintainer: An Sung. The user (his parents) operates the Claude agent; they will ask you to keep updating and maintaining this repo.
 
-## 後端（不在這個 repo，但前端依賴它）
+## Backend (not in this repo, but the frontend depends on it)
 
-- API：https://vanhiking-api.ansung.dev — Cloudflare Worker `vanhiking-api`，資料庫是共用的 D1 `SharedDB`。
-- GET 是公開的，POST 要 Bearer gate password（存在 worker secret 裡，**絕對不要寫進 repo、不要寫進任何檔案、不要貼在對話裡**）。
-- 主要端點：
-  - `GET /hikes` — 健行路線（欄位含 `post_ids`、`meeting_point`、`geometry`、`distance_km`、`est_duration_min`）
-  - `GET /posts` — Facebook 貼文
-  - `GET /posts/:id` — 單則貼文（含 `post_type`，給前端標示照片／影片連結用）
-  - `GET /snapshots` — 每日 insights 快照
-  - `GET /audience` — 受眾資料
-  - `GET /stats` — 總數統計
-- 資料表：`social_accounts`、`social_daily_snapshots`、`social_posts`、`social_audience`、`social_hikes`。
-- Facebook Page：長青健行社，page_id `775427925912036`，https://www.facebook.com/VancouverEvergreenHiking，1,894 位追蹤者。
-- 貼文連結格式：`https://www.facebook.com/775427925912036/posts/{platform_post_id}`。
+- API: https://vanhiking-api.ansung.dev — Cloudflare Worker `vanhiking-api`, database is the shared D1 `SharedDB`.
+- GETs are public; POSTs require a Bearer gate password (stored as a worker secret — **never write it into the repo, into any file, or into chat**).
+- Main endpoints:
+  - `GET /hikes` — hike routes (fields include `post_ids`, `meeting_point`, `geometry`, `distance_km`, `est_duration_min`)
+  - `GET /posts` — Facebook posts
+  - `GET /posts/:id` — a single post (includes `post_type`, used by the frontend to label the photo / video links)
+  - `GET /snapshots` — daily insights snapshots
+  - `GET /audience` — audience data
+  - `GET /stats` — totals
+- Tables: `social_accounts`, `social_daily_snapshots`, `social_posts`, `social_audience`, `social_hikes`.
+- Facebook Page: 長青健行社, page_id `775427925912036`, https://www.facebook.com/VancouverEvergreenHiking, 1,894 followers.
+- Post link format: `https://www.facebook.com/775427925912036/posts/{platform_post_id}`.
 
-## 技術棧
+## Stack
 
-- Next.js 14 App Router、React 18、Recharts、next-themes（淺色／深色切換）。
-- 地圖：mapcn（MapLibre GL 封裝，CARTO 底圖；衛星圖用 Esri World Imagery，不用 key）。
-- UI：ReUI Timeline、shadcn Select、shadcn Drawer（Vaul，手機底部抽屜）。
-- 重要檔案：
-  - `app/page.js` — 首頁地圖 + 路線詳細卡片（含 Facebook 連結）
-  - `app/hike-map.jsx` — 地圖元件（pins、路線動畫、衛星切換）
-  - `app/dashboard/page.js` — 數據看板（KPI、每月觸及趨勢、貼文、受眾）
-  - `app/header.jsx` — 頂欄、主題切換
-  - `app/globals.css` — 全域樣式（含 `.hike-pin`、`.hike-item` 選取狀態）
-  - `components/` — shadcn / ReUI 元件
+- Next.js 14 App Router, React 18, Recharts, next-themes (light / dark toggle).
+- Map: mapcn (a MapLibre GL wrapper, CARTO basemap; satellite uses Esri World Imagery, no key needed).
+- UI: ReUI Timeline, shadcn Select, shadcn Drawer (Vaul, mobile bottom sheet).
+- Key files:
+  - `app/page.js` — landing map + hike detail card (including the Facebook links)
+  - `app/hike-map.jsx` — map component (pins, route animation, satellite toggle)
+  - `app/dashboard/page.js` — dashboard (KPIs, monthly reach trend, posts, audience)
+  - `app/header.jsx` — top bar, theme toggle
+  - `app/globals.css` — global styles (including `.hike-pin` and the selected `.hike-item` state)
+  - `components/` — shadcn / ReUI components
 
-## 部署
+## Deploy
 
-- 前端部署：`python3 ~/workspace/custom-connectors/custom.legacy-vercel/bin/deploy_nextjs.py ~/workspace/vanhiking --name vanhiking`
-- **永遠用 https://vanhiking.vercel.app 驗證** — 部署專屬網址會 302 到 Vercel SSO，不能用。
-- 部署 body 上限 10 MB：`.records/` 裡的 backfill 紀錄 JSON（約 8 MB）不要放進部署，deploy script 會跳過 dot 目錄。
-- Worker 部署：`~/workspace/vanhiking-api/deploy.py`（走 Cloudflare API multipart PUT；wrangler CLI 在這個環境無法認證，不要用）。
-- 改 worker 前先看 `~/workspace/vanhiking-api/src/index.js` 現有的寫法：async handler 一定要 `return await ...`（bare `return promise` 會讓 catch 抓不到錯誤，曾經造成全站 1101）。
-- Scripted 呼叫 worker 一律帶瀏覽器 User-Agent（例如 `Mozilla/5.0 ... Chrome/120.0`），否則 Cloudflare 會回 1010。
+- Frontend deploy: `python3 ~/workspace/custom-connectors/custom.legacy-vercel/bin/deploy_nextjs.py ~/workspace/vanhiking --name vanhiking`
+- **Always verify on https://vanhiking.vercel.app** — deployment-specific URLs 302-redirect to Vercel SSO and cannot be used.
+- Deploy body limit is 10 MB: the backfill record JSONs in `.records/` (~8 MB) must not go into a deploy; the deploy script skips dot-directories.
+- Worker deploy: `~/workspace/vanhiking-api/deploy.py` (Cloudflare API multipart PUT; the wrangler CLI cannot authenticate in this environment — do not use it).
+- Before editing the worker, read the existing patterns in `~/workspace/vanhiking-api/src/index.js`: async handlers must use `return await ...` (a bare `return promise` lets errors escape `catch` — this once caused a site-wide 1101).
+- Scripted calls to the worker must send a browser User-Agent (e.g. `Mozilla/5.0 ... Chrome/120.0`); otherwise Cloudflare returns 1010.
 
-## 版本控制
+## Version control
 
-- **沒有本地 git repo** — GitHub（dev-ansung/van-hiking，private）是唯一有版本紀錄的地方。
-- 更新方式：`PYTHONPATH=/opt/muse/skills/custom-connector-setup/bin python3 ~/workspace/custom-connectors/custom.legacy-github/bin/commit_files.py dev-ansung/van-hiking main "<message>" <localpath:remotepath> [...]`
-  （`push_repo.py` 內建的 sys.path 指向不存在的路徑，一定要用上面的 PYTHONPATH；git SSH push 在這個環境被擋，不要用。）
-- **每次 push 前先 grep 檢查**：repo 裡不能有 gate password、Facebook/Graph token、API key 或任何 bearer 值。密碼和 token 只存在 Secure Vault / worker secret。
-- Push 後用 GitHub API 驗證檔案真的上去了（`GET /repos/dev-ansung/van-hiking/commits`、`GET /repos/dev-ansung/van-hiking/contents/<path>`）。
+- **There is no local git repo** — GitHub (dev-ansung/van-hiking, private) is the only versioned copy.
+- To update it: `PYTHONPATH=/opt/muse/skills/custom-connector-setup/bin python3 ~/workspace/custom-connectors/custom.legacy-github/bin/commit_files.py dev-ansung/van-hiking main "<message>" <localpath:remotepath> [...]`
+  (`push_repo.py`'s built-in sys.path points at a path that does not exist — the PYTHONPATH above is required; git SSH push is blocked in this environment, do not use it.)
+- **Grep for secrets before every push**: the repo must not contain the gate password, a Facebook/Graph token, an API key, or any bearer value. Passwords and tokens live only in the Secure Vault / worker secrets.
+- After pushing, verify via the GitHub API that the files actually landed (`GET /repos/dev-ansung/van-hiking/commits`, `GET /repos/dev-ansung/van-hiking/contents/<path>`).
 
-## 使用者定下的設計規則（沒有他同意，不要反轉）
+## Design rules set by the user (do not reverse without his approval)
 
-- **只寫 glue code**：優先用現成套件（mapcn、ReUI、shadcn），不要自己手寫複雜元件；**絕對不要改套件內部程式碼**，套件不合用就換套件。
-- **Mobile-first**：使用者主要是手機。
-- **簡潔專業，不要大字高對比**：他明確反對過大字／高對比的長輩版設計。
-- 只參考 Facebook 的 **layout 架構**（頂欄、卡片列表），不要用 Facebook 的品牌或配色。
-- **不要 collapsible sidebar**：桌面左側面板永遠固定顯示；手機用可拖曳的底部抽屜（shadcn Drawer，snap points）。
-- **不要地圖 clustering**：他曾經要求做過，同一天晚上又要求拆掉。現在是每趟一個獨立圖釘；點圖釘時清單會 filter 到那趟的 ISO 週並捲動到該項目，取消選取時恢復原本的 filter。
-- Muted pins（未選取的圖釘）保持淡淡的灰色 — 他拒絕過調高對比度的提議，不要再提。
-- 預設只顯示**最近 3 個月**的健行；清單每次顯示 10 趟，按「載入更多」再顯示 10 趟。
-- 距離和時間都是**估算**：路線用 Valhalla pedestrian 重算過（OSRM 會走車道，不能用），時間用每小時 4 公里換算，UI 上標「估算」；實際時間一律顯示「待回報」。
-- 資料每頁要全數載入：`GET /hikes` 要用 limit=100 分頁抓到 `total` 為止（之前只抓 50 筆的 bug 已經修掉，不要再犯）。
+- **Glue code only**: prefer off-the-shelf packages (mapcn, ReUI, shadcn); do not hand-write complex components. **Never modify a package's internals** — if a package does not fit, swap the package.
+- **Mobile-first**: users are mostly on phones.
+- **Clean and professional — no large text / high contrast**: he explicitly rejected a large-text / high-contrast "senior" design.
+- Reference Facebook's **layout structure** only (top bar, card feed) — never its branding or colors.
+- **No collapsible sidebar**: the desktop left panel is always visible; on mobile use a draggable bottom sheet (shadcn Drawer with snap points).
+- **No map clustering**: he asked for it once, then asked for it to be removed the same evening. Every hike now has its own pin; tapping a pin filters the list to that hike's ISO week and scrolls to the item, and clearing the selection restores the previous filter.
+- Muted pins (unselected pins) stay faint grey — he declined a contrast bump; do not propose it again.
+- By default only the **last 3 months** of hikes are shown; the list shows 10 hikes at a time, with a "load more" button for 10 more.
+- Distances and times are **estimates**: routes were re-routed with Valhalla pedestrian (OSRM follows car roads — do not use it); times are distance ÷ 4 km/h and the UI labels them as estimates (估算）; actual times always show as "to be reported" (待回報）.
+- Every page of data must be fetched in full: paginate `GET /hikes` with limit=100 until `total` is reached (a previous bug fetched only 50 rows — fixed, do not repeat it).
 
-## 資料規則
+## Data rules
 
-- **社團是 CLOSED**：只記錄已經走過的路線，**絕對不要**發布或顯示未來的行程。
-- **絕對不要加使用者的個人 Instagram / Threads 帳號**：之前加過一次，他當場要求刪掉。這個網站只是長青健行社的頁面。
-- Dashboard 的趨勢圖是**每月彙總**每日 snapshots（長條＝每月觸及，折線＝互動率，右軸％），並且**排除 2026-11-21 那筆 LAST_28D 彙總**（那不是每日數值）；2024-08 以前沒有每日觸及紀錄，圖上顯示空白，**絕對不要畫成零**。
-- 2021 年社團完全沒有貼文（暫停活動），不是資料缺失。
+- **The club is CLOSED**: record only hikes that have already taken place; **never** publish or display upcoming routes.
+- **Never add the user's personal Instagram / Threads accounts**: they were added once and he asked for them to be removed on the spot. This site is the club's page only.
+- The dashboard trend chart is a **monthly aggregation** of daily snapshots (bars = monthly reach, line = engagement rate, right axis %), and it **excludes the 2026-11-21 LAST_28D aggregate row** (that is not a daily value); before 2024-08 there are no recorded daily reach numbers, so those months render blank — **never render them as zero**.
+- The club posted nothing at all in 2021 (activities paused) — that is not missing data.
 
-## 改完要驗證
+## Verification after a change
 
-1. `npm run build` 通過。
-2. 首頁和 /dashboard 在 https://vanhiking.vercel.app 都是 HTTP 200。
-3. 用真實瀏覽器、hard refresh 檢查（production HTML 有 `s-maxage=31536000` 快取，不 hard refresh 會看到舊版）。
-4. 檢查的項目：pin 點擊、路線動畫、年／週 filter、搜尋、清單分頁、手機底部抽屜、淺色／深色切換、Facebook 連結標示（照片／影片）。
+1. `npm run build` passes.
+2. Home and /dashboard both return HTTP 200 on https://vanhiking.vercel.app.
+3. Check in a real browser with a hard refresh (production HTML is cached with `s-maxage=31536000` — without a hard refresh you will see the old version).
+4. Check: pin taps, route animation, year / week filters, search, list pagination, mobile bottom sheet, light / dark toggle, Facebook link labels (photo / video).
 
-## 已知待辦（使用者沒說要做之前，不要動手）
+## Known open items (do not start these unless the user says so)
 
-- 每日 07:00 自動抓取還沒排程（`~/workspace/vanhiking-api/pull-fb.py` 已寫好、smoke-tested；gate password 要從環境變數讀，不要寫進 cron）。
-- Dashboard 貼文區只顯示 50 則，總數是 368 則（要不要分頁，等他決定）。
-- 手機 ~390px 版面還沒用真機確認過。
-- 管理員自動發文到 Facebook（純文字或含照片）和管理頁的登入方式都還沒決定。
-- 五區導覽（主頁／地圖／路線／數據／管理）只是討論，沒有要做。
-- 社團官網上的行程 PDF（約 60 趟、2019–2020 年的計畫表）還沒爬；注意那是「計畫」不是「已走過的紀錄」。
+- The daily 07:00 automatic pull is not scheduled yet (`~/workspace/vanhiking-api/pull-fb.py` is written and smoke-tested; the gate password must be read from an environment variable, never written into a cron).
+- The dashboard posts section shows only 50 of 368 posts (whether to paginate is his call).
+- The mobile ~390px layout has not been confirmed on a real phone.
+- Admin auto-posting to Facebook (text-only vs with photos) and the admin page's login method are undecided.
+- The five-section nav (Home / Map / Routes / Data / Admin) is discussion only — not to be built.
+- The schedule PDFs on the club's website (~60 planned outings, 2019–2020) have not been crawled; note those are *plans*, not walked records.

@@ -1,34 +1,36 @@
-# 長青健行社 — 健行地圖
+# Evergreen Hiking Club — Hiking Map
 
-這是長青健行社（溫哥華長青健行社）的健行紀錄網站，給社團的朋友們看我們去過哪些地方。
+<!-- 中文版：[README.zh-TW.md](README.zh-TW.md) -->
 
-網站：https://vanhiking.vercel.app
-數據看板：https://vanhiking.vercel.app/dashboard
+An interactive map of every hike taken by the Evergreen Hiking Club (長青健行社, Vancouver) since 2019 — 202 hikes, about 992 km in total.
 
-## 這個網站有什麼
+- **Live site:** https://vanhiking.vercel.app
+- **Dashboard:** https://vanhiking.vercel.app/dashboard
 
-- **地圖**：從 2019 年到現在，社團每一次健行的路線都畫在地圖上，一共 202 趟，總共約 992 公里。
-- **每一趟都有紀錄**：出發日期、集合地點、路線、距離和大概要走多久。
-- **連結到 Facebook**：每一趟都可以直接打開當天在 Facebook 貼的照片和影片。
+## What it shows
 
-## 手機怎麼用
+- **Map** — every club hike since 2019 plotted on the map: 202 routes, ~992 km total.
+- **Every hike recorded** — date, meeting point, route, distance, and estimated duration.
+- **Linked to Facebook** — each hike links directly to the photos and video posted on the club's Facebook Page that day.
 
-1. 用手機打開 https://vanhiking.vercel.app。
-2. 地圖上有一個個圖釘，每一個圖釘就是一趟健行，位置就是那次的集合地點。
-3. 點一下圖釘，地圖上會畫出那趟的路線，旁邊也會出現這趟的詳細資料。
-4. 想找某一趟，可以用上面的搜尋框打地名，或用年份、週數來找。打開時預設只顯示最近 3 個月的健行。
-5. 資料卡裡有「在 Facebook 查看照片」和「在 Facebook 查看影片」，點了就會打開 Facebook 那天的貼文。
-6. 右上角可以切換地圖和衛星圖，衛星圖看山路比較清楚。
-7. 手機上底部的資料可以往上拉開，電腦上資料在左邊固定顯示。
+## How to use it (on a phone)
 
-## 資料從哪裡來
+1. Open https://vanhiking.vercel.app on your phone.
+2. Each pin on the map is one hike; the pin sits at that hike's meeting point.
+3. Tap a pin to draw the route on the map and open the hike's detail card.
+4. To find a specific hike, use the search box (place names) or filter by year and week. By default only the last 3 months are shown.
+5. The detail card has "View photos on Facebook" and "View video on Facebook" links that open that day's posts.
+6. Switch between map and satellite view from the top right — satellite is clearer for trails.
+7. On phones, pull the bottom sheet up for details; on desktop the list stays fixed on the left.
 
-資料來自長青健行社的 Facebook 專頁（https://www.facebook.com/VancouverEvergreenHiking）發過的貼文和統計數據。
+## Where the data comes from
 
-- 地圖上的距離和時間是**估算**的：路線是照著地圖上的步道估出來的，時間是用每小時走 4 公里來算的，不是實際測量的。
-- 實際走了多久是「待回報」：如果您記得某次實際走了多久，歡迎告訴我們。
-- 網站上只列出**已經走過**的健行，不會公布下一次的行程。
+Data comes from the Evergreen Hiking Club Facebook Page (https://www.facebook.com/VancouverEvergreenHiking) — its posts and insights.
 
-## 維護
+- Distances and times are **estimates**: routes are reconstructed along walking trails, and times are calculated at 4 km/h — they are not measured.
+- Actual walking times are "to be reported": if you remember how long a hike actually took, let us know.
+- Only hikes that have **already taken place** are listed; upcoming routes are never published.
 
-網站由 An Sung 維護。如有問題，請聯絡他。
+## Maintainer
+
+Maintained by An Sung. Questions? Please contact him.
