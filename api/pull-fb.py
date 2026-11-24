@@ -21,12 +21,18 @@ What it posts (gated; idempotent upserts, safe to re-run):
   - POST /posts/bulk          up to 10 recent posts
 
 Auth: the gate password comes from the environment
-(VANHIKING_GATE_PASSWORD) — never from a file in this repo. Every
+(VANHIKING_GATE_PASSWORD) when set — local use. Otherwise the Secure
+Vault credential "custom.vanhiking-api" is resolved per request via
+dynamic_credentials (an hsurr:* surrogate as the Bearer token) — the
+real value never appears in this file, in arguments, or in logs. If
+neither is available the script exits with a clear message. Every
 request sends a Chrome browser User-Agent (Cloudflare returns 1010
 for non-browser UAs).
 
 Usage:
     VANHIKING_GATE_PASSWORD=<gate> python3 pull-fb.py [--time-range LAST_28D]
+    # or, with the custom.vanhiking-api credential saved in the Secure Vault:
+    python3 pull-fb.py [--time-range LAST_28D]
 
 This script does NOT schedule itself; the daily cron runs it.
 """
@@ -37,6 +43,23 @@ import subprocess
 import sys
 import urllib.request
 import urllib.error
+
+# Secure Vault fallback for the gate password (used only when
+# VANHIKING_GATE_PASSWORD is not set, e.g. cron runs). The surrogate
+# is resolved per request, exactly like custom.housing-api's
+# housing_api.py; the real value never appears here.
+sys.path.insert(0, "/opt/muse/skills/custom-connector-setup/bin")
+try:
+    from dynamic_credentials import (
+        add_surrogate_to_request,
+        dynamic_credential_entry,
+    )
+    _HAVE_VAULT = True
+except ImportError:
+    _HAVE_VAULT = False
+
+VAULT_CREDENTIAL = "custom.vanhiking-api"
+VAULT_HOSTS = ("vanhiking-api.ansung.dev",)
 
 API_BASE = os.environ.get("VANHIKING_API_BASE", "https://vanhiking-api.ansung.dev")
 FB_CLI = "/opt/hatch/bin/facebook-cli"
@@ -151,16 +174,69 @@ def parse_leading_int(rendered):
         return None
 
 
-def api_post(path, payload, gate):
+def _vault_missing_message():
+    return (
+        "Secure Vault credential 'custom.vanhiking-api' is not saved yet. "
+        "Save the vanhiking-api gate password via the Secure Vault, "
+        "or run with VANHIKING_GATE_PASSWORD set."
+    )
+
+
+def _credential_missing(exc):
+    """True when authd cannot serve the credential at all. A credential
+    that was never saved surfaces as HTTP 403 'not available to the
+    sandbox' (verified: custom.housing-api and custom.facebook-graph
+    resolve fine, custom.vanhiking-api 403s); the 'missing surrogate'
+    text is the other form of the same state."""
+    msg = str(exc)
+    return "missing" in msg or "not available to the sandbox" in msg
+
+
+def check_vault_credential():
+    """Fail fast (before the facebook-cli fetches) when the env gate is
+    absent and the vault credential cannot be resolved."""
+    if not _HAVE_VAULT:
+        sys.exit(
+            "No VANHIKING_GATE_PASSWORD set and the Secure Vault helper "
+            "(dynamic_credentials) is unavailable on this machine."
+        )
+    try:
+        dynamic_credential_entry(VAULT_CREDENTIAL, "access_token")
+    except Exception as exc:
+        if _credential_missing(exc):
+            sys.exit(_vault_missing_message())
+        sys.exit(
+            f"Could not read Secure Vault credential "
+            f"'{VAULT_CREDENTIAL}': {exc}"
+        )
+
+
+def apply_vault_auth(req):
+    """Attach the Secure Vault surrogate as the Bearer token."""
+    try:
+        add_surrogate_to_request(req, VAULT_CREDENTIAL, allowed_hosts=VAULT_HOSTS)
+    except Exception as exc:
+        if _credential_missing(exc):
+            sys.exit(_vault_missing_message())
+        sys.exit(
+            f"Could not apply Secure Vault credential "
+            f"'{VAULT_CREDENTIAL}': {exc}"
+        )
+
+
+def api_post(path, payload, gate=None):
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(
         API_BASE + path, data=data, method="POST",
         headers={
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {gate}",
             "User-Agent": UA,
         },
     )
+    if gate:
+        req.add_header("Authorization", f"Bearer {gate}")
+    else:
+        apply_vault_auth(req)
     try:
         with urllib.request.urlopen(req, timeout=60) as resp:
             return json.loads(resp.read().decode("utf-8"))
@@ -169,9 +245,11 @@ def api_post(path, payload, gate):
 
 
 def main():
-    gate = os.environ.get("VANHIKING_GATE_PASSWORD")
-    if not gate:
-        sys.exit("VANHIKING_GATE_PASSWORD is not set")
+    gate = os.environ.get("VANHIKING_GATE_PASSWORD") or None
+    if gate is None:
+        # Fail fast before the facebook-cli fetches: the first POST
+        # would fail anyway, and the fetches take minutes.
+        check_vault_credential()
     time_range = "LAST_28D"
     if "--time-range" in sys.argv:
         time_range = sys.argv[sys.argv.index("--time-range") + 1]
