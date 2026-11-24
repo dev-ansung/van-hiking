@@ -1,36 +1,116 @@
-# Evergreen Hiking Club — Hiking Map
+# van-hiking — Evergreen Hiking Club Map & Dashboard
 
-<!-- 中文版：[README.zh-TW.md](README.zh-TW.md) -->
+[![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-18-149eca.svg)](https://react.dev/)
+[![MapLibre GL](https://img.shields.io/badge/MapLibre-GL-396cb0.svg)](https://maplibre.org/)
 
-An interactive map of every hike taken by the Evergreen Hiking Club (長青健行社, Vancouver) since 2019 — 202 hikes, about 992 km in total.
+[繁體中文](./README.zh-TW.md)
 
-- **Live site:** https://vanhiking.vercel.app
-- **Dashboard:** https://vanhiking.vercel.app/dashboard
+Interactive route map and analytics dashboard for the **Evergreen Hiking Club (長青健行社)** in Vancouver — archiving every club hike since 2019 with trail geometry, meeting points, estimated distance/duration, and direct links to each outing's Facebook photos and videos.
 
-## What it shows
+- **Live Map**: https://vanhiking.vercel.app
+- **Analytics Dashboard**: https://vanhiking.vercel.app/dashboard
 
-- **Map** — every club hike since 2019 plotted on the map: 202 routes, ~992 km total.
-- **Every hike recorded** — date, meeting point, route, distance, and estimated duration.
-- **Linked to Facebook** — each hike links directly to the photos and video posted on the club's Facebook Page that day.
+---
 
-## How to use it (on a phone)
+## Features
 
-1. Open https://vanhiking.vercel.app on your phone.
-2. Each pin on the map is one hike; the pin sits at that hike's meeting point.
-3. Tap a pin to draw the route on the map and open the hike's detail card.
-4. To find a specific hike, use the search box (place names) or filter by year and week. By default only the last 3 months are shown.
-5. The detail card has "View photos on Facebook" and "View video on Facebook" links that open that day's posts.
-6. Switch between map and satellite view from the top right — satellite is clearer for trails.
-7. On phones, pull the bottom sheet up for details; on desktop the list stays fixed on the left.
+- **Interactive Route Map**: Plots every walked hike at its meeting point; selecting a pin draws the reconstructed trail route on the map and scrolls to the corresponding hike card.
+- **Basemap & Satellite Toggle**: Built on MapLibre GL (`mapcn`) with CARTO basemaps (light/dark theme aware) and Esri World Imagery satellite view.
+- **Filtering & Search**: Filter by year, ISO week, or place-name search. Defaults to the last 3 months and paginates 10 hikes at a time.
+- **Facebook Post Integration**: Automatically resolves each hike's `post_ids` via `GET /posts/:id` to label and link directly to the day's Facebook photo album or video post.
+- **Mobile-First Layout**: Fixed left panel on desktop; draggable Vaul bottom sheet with snap points on mobile.
+- **Club Insights Dashboard (`/dashboard`)**: Monthly reach & engagement-rate trend chart (Recharts), post performance feed, and audience demographics.
 
-## Where the data comes from
+---
 
-Data comes from the Evergreen Hiking Club Facebook Page (https://www.facebook.com/VancouverEvergreenHiking) — its posts and insights.
+## Architecture
 
-- Distances and times are **estimates**: routes are reconstructed along walking trails, and times are calculated at 4 km/h — they are not measured.
-- Actual walking times are "to be reported": if you remember how long a hike actually took, let us know.
-- Only hikes that have **already taken place** are listed; upcoming routes are never published.
+This repository contains the **Next.js 14 frontend** only. Data is served by a separate Cloudflare Worker (`vanhiking-api`) backed by Cloudflare D1 (`SharedDB`).
 
-## Maintainer
+```mermaid
+flowchart LR
+    UI["Next.js Frontend\n(app/page.js & app/dashboard/page.js)"]
+    API["vanhiking-api\n(Cloudflare Worker + D1)"]
+    MapTiles["CARTO & Esri World Imagery\n(MapLibre GL Basemaps)"]
+    FB["Facebook Page\n(長青健行社 Posts & Insights)"]
 
-Maintained by An Sung. Questions? Please contact him.
+    UI -->|"GET /hikes, /posts/:id, /snapshots, /audience, /stats"| API
+    UI -->|"Vector / Satellite Tiles"| MapTiles
+    API -.->|"Archived Posts & Metrics"| FB
+```
+
+### API Endpoints Consumed
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /hikes` | Paginated hike records (`limit=100` until `total` reached), including `geometry`, `meeting_point`, `distance_km`, `est_duration_min`, `post_ids` |
+| `GET /posts` | Archived club Facebook posts |
+| `GET /posts/:id` | Single post metadata (`post_type` used to label photo vs. video links) |
+| `GET /snapshots` | Daily Facebook insights snapshots (aggregated monthly on `/dashboard`) |
+| `GET /audience` | Audience breakdown data |
+| `GET /stats` | Club-wide summary totals |
+
+---
+
+## Project Structure
+
+```text
+van-hiking/
+├── app/
+│   ├── dashboard/
+│   │   └── page.js        # Analytics dashboard (/dashboard)
+│   ├── globals.css        # Global styles, theme tokens, map pin & selection states
+│   ├── layout.js          # Root layout & ThemeProvider
+│   └── page.js            # Landing map, filters, timeline list, mobile drawer
+├── components/
+│   ├── reui/
+│   │   └── timeline.jsx   # ReUI Timeline component
+│   ├── ui/                # shadcn/ui & mapcn primitives (button, drawer, map, select)
+│   ├── header.jsx         # Top navigation bar & theme toggle
+│   ├── hike-map.jsx       # MapLibre GL map, pins, animated route, satellite toggle
+│   ├── mode-toggle.jsx    # Light / dark theme switcher
+│   └── theme-provider.jsx # next-themes wrapper
+├── lib/
+│   └── utils.js           # Classname merge helper
+├── AGENTS.md              # Architecture, design rules, and maintainer playbook
+├── components.json        # shadcn / ReUI / mapcn registry configuration
+├── jsconfig.json          # Path aliases (@/*)
+├── next.config.js         # Next.js configuration
+└── package.json
+```
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+ (Node 20+ recommended)
+- `npm`
+
+### Local Development
+
+```bash
+git clone https://github.com/dev-ansung/van-hiking.git
+cd van-hiking
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Production Build
+
+```bash
+npm run build
+npm run start
+```
+
+---
+
+## Data & Policy Notes
+
+- **Estimated Routes & Times**: Trail geometries are reconstructed using Valhalla pedestrian routing, and estimated durations assume 4 km/h (`distance_km / 4`). Actual walking durations are marked as pending (`待回報`).
+- **Historical Archive Only**: The club is closed; only completed hikes are recorded and displayed. Upcoming routes are never published.
+- **Maintainer Guide**: See [`AGENTS.md`](./AGENTS.md) for strict UI, data-handling, and verification rules before making changes.

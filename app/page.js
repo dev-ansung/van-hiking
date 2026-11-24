@@ -21,10 +21,10 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 
-import Header from "./header";
-import { routeColor } from "./hike-map";
+import Header from "@/components/header";
+import { routeColor } from "@/components/hike-map";
 
-const HikesMap = dynamic(() => import("./hike-map"), {
+const HikesMap = dynamic(() => import("@/components/hike-map"), {
   ssr: false,
   loading: () => <p className="empty">地圖載入中…</p>,
 });

@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 
-import Header from "../header";
+import Header from "@/components/header";
 
 const API = "https://vanhiking-api.ansung.dev";
 const DEFAULT_ACCOUNT = "fb-changqing";
